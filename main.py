@@ -53,6 +53,9 @@ SERVER_TIMEOUT = 40
 
 app = FastAPI()
 
+from agent_api import router as agent_router
+app.include_router(agent_router)
+
 
 class ChatRequest(BaseModel):
     message: str

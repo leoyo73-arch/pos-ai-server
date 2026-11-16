@@ -148,14 +148,15 @@ graph = builder.compile(checkpointer=MemorySaver())   # 대화 기록을 기억 
 
 # ── 터미널 테스트 ────────────────────────────────────────
 NODE_NAMES = {"plan": "계획", "tools": "도구 실행", "check": "결과 확인", "report": "보고"}
-CONFIG = {"configurable": {"thread_id": "demo"}}
 
 
-def run(question: str) -> str:
+def run(question: str, thread_id: str = "demo") -> str:
+    """질문 하나를 그래프로 처리하고 최종 답변을 돌려준다. thread_id별로 대화 기록을 따로 기억한다."""
     final = ""
+    config = {"configurable": {"thread_id": thread_id}}
     initial = {"messages": [HumanMessage(question)], "steps": 0,
                "approval_needed": False, "errors": 0, "final": ""}
-    for update in graph.stream(initial, CONFIG, stream_mode="updates"):
+    for update in graph.stream(initial, config, stream_mode="updates"):
         for node, value in update.items():
             print(f"  → [{NODE_NAMES.get(node, node)}]", flush=True)
             if node == "report" and value:
