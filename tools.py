@@ -3,6 +3,7 @@
 # - 돈이 움직이거나 손님에게 나가는 작업(cancel_payment, send_notice)은 바로 실행하지 않고
 #   '승인 대기'로만 등록합니다. 실제 실행은 사장님 승인 후 approve_action()이 합니다.
 #   approve_action은 AI 도구로 등록하지 않으므로 AI가 스스로 승인할 수 없습니다.
+import functools
 import sqlite3
 from datetime import date, datetime, timedelta
 
@@ -199,16 +200,37 @@ def cancel_payment(transaction_id: str, reason: str) -> dict:
     return {"결과": "승인 대기", "요청번호": cur.lastrowid, "안내": "사장님이 승인하면 취소됩니다."}
 
 
-# AI에 등록할 도구 목록
-AGENT_TOOLS = [get_sales_summary, list_transactions, get_refund_status, send_notice, cancel_payment]
+def logged(func):
+    """도구가 불릴 때마다 이름·인자·결과 요약을 터미널에 찍는다. (디버깅·시연용)
+    functools.wraps가 이름·독스트링·타입 힌트를 그대로 옮겨서, AI가 보는 설명은 바뀌지 않는다."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        shown = ", ".join([repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()])
+        print(f"  [도구 호출] {func.__name__}({shown})", flush=True)
+        result = func(*args, **kwargs)
+        if isinstance(result, dict):
+            summary = result.get("결과") or result.get("오류") or (f"{result['건수']}건" if "건수" in result else "조회 완료")
+            print(f"  [도구 결과] {summary}", flush=True)
+        return result
+    return wrapper
+
+
+# AI에 등록할 도구 목록 (호출 기록이 찍히도록 감싸서 등록)
+AGENT_TOOLS = [logged(f) for f in (get_sales_summary, list_transactions, get_refund_status, send_notice, cancel_payment)]
 
 
 # ─────────────────────────────────────────────
 # 승인 처리: 앱의 승인 버튼에서만 호출 (AI 도구 아님)
 # ─────────────────────────────────────────────
 def list_waiting_actions() -> list[dict]:
+    """승인 대기 목록. 사장님이 무엇을 승인하는지 알 수 있게 거래 정보를 함께 붙인다."""
     with _db() as con:
-        return [dict(r) for r in con.execute("SELECT * FROM pending_actions WHERE status = 'WAITING'")]
+        rows = con.execute(
+            """SELECT p.*, t.amount, t.items, t.created_at AS paid_at, t.method
+               FROM pending_actions p JOIN transactions t ON t.id = p.transaction_id
+               WHERE p.status = 'WAITING' ORDER BY p.id"""
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def approve_action(action_id: int, approve: bool = True) -> dict:
