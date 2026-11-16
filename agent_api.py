@@ -72,4 +72,4 @@ def decide(action_id: int, req: DecisionRequest) -> DecisionResponse:
     if not req.approve:
         return DecisionResponse(ok=True, message="요청을 거절했어요. 실행되지 않습니다.")
     kind = "결제 취소" if result["종류"] == "CANCEL" else "손님 안내 발송"
-    return DecisionResponse(ok=True, message=f"{result['거래번호']} {kind}를 완료했어요.")
+    return DecisionResponse(ok=True, message=f"{result['거래번호']} {kind} 완료")
