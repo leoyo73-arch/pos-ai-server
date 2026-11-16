@@ -2,3 +2,5 @@ fastapi[standard]
 google-genai
 python-dotenv
 chromadb
+langgraph
+langchain-google-genai
