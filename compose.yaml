@@ -1,0 +1,12 @@
+services:
+  server:
+    build: .
+    ports:
+      - "8000:8000"          # PC의 8000번 → 컨테이너의 8000번 (폰에서 접속하는 그 포트)
+    env_file: .env           # API 키는 실행할 때만 전달 (이미지에는 들어가지 않음)
+    volumes:
+      - chroma_data:/app/chroma_db   # 벡터 DB를 보관 → 다시 켤 때 임베딩을 또 안 함
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
