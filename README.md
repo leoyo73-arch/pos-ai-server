@@ -1,7 +1,9 @@
 # POS AI 서버 — 가맹점 상담 챗봇(RAG)과 업무 비서(에이전트)
 
 ## 시연 영상 (1분 55초) 
-https://github.com/user-attachments/assets/1cb62609-f8ae-477f-8c3a-8633ac0efdcb
+https://github.com/user-attachments/assets/be35d991-c90f-4200-a6b1-dade9d307644
+
+
 
 소상공인 POS 앱에 **AI 상담**과 **매출·취소 업무 비서**를 붙인 포트폴리오 프로젝트의 서버입니다.
 금융 결제 앱을 4년간 개발·운영한 경험을 바탕으로, **AI가 틀리거나 위험한 일을 하지 않도록 막는 구조**에 집중했습니다.
