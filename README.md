@@ -1,6 +1,6 @@
 # POS AI 서버 — 가맹점 상담 챗봇(RAG)과 업무 비서(에이전트)
 
-## 시연 영상 (1분 55초) 
+## 시연 영상 (2분 34초) 
 https://github.com/user-attachments/assets/be35d991-c90f-4200-a6b1-dade9d307644
 
 
