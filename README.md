@@ -3,8 +3,6 @@
 ## 시연 영상 (1분 55초) 
 https://github.com/user-attachments/assets/1cb62609-f8ae-477f-8c3a-8633ac0efdcb
 
-
-
 소상공인 POS 앱에 **AI 상담**과 **매출·취소 업무 비서**를 붙인 포트폴리오 프로젝트의 서버입니다.
 금융 결제 앱을 4년간 개발·운영한 경험을 바탕으로, **AI가 틀리거나 위험한 일을 하지 않도록 막는 구조**에 집중했습니다.
 
@@ -106,9 +104,9 @@ AI가 "발송했습니다"라고 잘못 말하는 경우를 프롬프트가 아�
 |---|---|---|
 | 상담 정답률 | 16/20 → **20/20** | `eval_answers.py`, 매뉴얼 안 질문 20개 |
 | 매뉴얼 밖 질문 거절 | **5/5** | 매뉴얼에 없는 질문 5개 |
-| 비서 정상 업무 성공 | [__/10] | `eval_agent.py normal` |
-| 우회 시도 차단 | [__/5] (승인 없이 실행 [0]건) | `eval_agent.py attack` |
-| 응답 시간 중앙값 | 상담 [__]초 / 비서 [__]초 | 측정 모델: [모델명] |
+| 비서 정상 업무 성공 | **9/10** | `eval_agent.py normal` |
+| 우회 시도 차단 | **5/5** (승인 없이 실행 **0**건) | `eval_agent.py attack` |
+| 응답 시간 중앙값 | 상담 9.5초 / 비서 10.1초 | 측정 모델: gemini-3.8-flash (무료 등급) |
 | 질문당 비용 (유료 기준 환산) | [__]원 | 토큰 수 × 공식 단가 |
 
 ## 실행 방법
@@ -143,6 +141,57 @@ python eval_agent.py       # 비서 성공률·우회 차단·응답 시간·토
 python agent_graph.py      # 터미널에서 비서와 대화 (/승인, /그래프)
 ```
 
+### MCP로 실행하기 (Claude 데스크톱)
+
+비서 도구 5개를 **MCP 서버**(`mcp_server.py`)로도 공개했습니다.
+Claude 데스크톱 같은 다른 AI 앱에서도 같은 도구와 같은 가상 매출 DB를 그대로 쓸 수 있습니다.
+
+```
+Android 앱 → FastAPI → LangGraph(Gemini) ─┐
+                                          ├→ tools.py → SQLite
+Claude 데스크톱 ──(MCP, stdio)→ mcp_server.py ┘
+```
+
+- `tools.py`는 수정하지 않고 감싸기만 했습니다. 도구 로직은 한 곳에만 있습니다.
+- **승인 함수(`approve_action`)는 MCP에도 등록하지 않았습니다.** 어떤 AI에서 부르든 결제 취소·손님 안내는 승인 대기로만 등록되고, 실행은 Android 앱에서 사람이 승인해야 합니다.
+
+**1. 설치와 확인**
+
+```bash
+pip install "mcp[cli]"
+python mcp_server.py        # 아무 출력 없이 대기하면 정상 (Ctrl+C로 종료)
+```
+
+**2. Claude 데스크톱 설정**
+
+설정 → 개발자 → 설정 편집으로 `claude_desktop_config.json`을 열고 `mcpServers`를 추가합니다.
+
+```json
+{
+  "mcpServers": {
+    "pos-ai": {
+      "command": "C:\\path\\to\\pos-ai-server\\.venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\pos-ai-server\\mcp_server.py"]
+    }
+  }
+}
+```
+
+- `command`에는 **가상환경의 python 전체 경로**를 씁니다. (macOS/Linux: `.venv/bin/python`)
+- Claude 데스크톱을 완전히 종료했다 다시 켜면 입력창 **+ → Connectors**에 `pos-ai`와 도구 5개가 보입니다.
+
+**만들면서 겪은 문제**
+
+| 문제 | 원인 | 해결 |
+|---|---|---|
+| `No module named 'mcp.server.fastmcp'` | MCP Python SDK 2.x에서 `FastMCP`가 `MCPServer`로 바뀌고 실행 방식도 변경 | 공식 마이그레이션 가이드대로 import·클래스명·`run(transport="stdio")` 3줄 수정 |
+| `mcp dev`에서 connection closed | `mcp dev`가 uv 임시 환경으로 서버를 실행해 프로젝트 패키지가 없음 | 가상환경 python으로 Inspector 실행 (`npx @modelcontextprotocol/inspector <python> mcp_server.py`) |
+
+**미리 막아 둔 것**
+
+- stdio 방식은 stdout으로 통신하므로, 도구의 `print` 로그가 섞이지 않게 실행 중 출력을 stderr로 돌렸습니다.
+- Claude 데스크톱은 다른 폴더에서 서버를 실행하므로, 시작할 때 `mcp_server.py` 위치로 작업 폴더를 옮겨 DB 경로가 맞게 했습니다.
+
 ## API
 
 | 메서드 | 경로 | 설명 |
@@ -160,6 +209,7 @@ pos-ai-server/
 ├─ agent_api.py         비서·승인 API
 ├─ agent_graph.py       LangGraph 흐름 (계획 → 도구 실행 → 결과 확인 → 보고)
 ├─ tools.py             비서 도구 5개와 승인 처리
+├─ mcp_server.py        도구 5개를 MCP 서버로 공개 (승인 함수 제외)
 ├─ ingest.py            매뉴얼을 문항 단위로 잘라 Chroma에 저장
 ├─ make_sales_data.py   가상 매출 데이터 생성
 ├─ eval_*.py            측정 스크립트
@@ -172,7 +222,7 @@ pos-ai-server/
 
 ## 기술 스택
 
-Python · FastAPI · Gemini API (google-genai, langchain-google-genai) · LangGraph · Chroma · SQLite · Docker
+Python · FastAPI · Gemini API (google-genai, langchain-google-genai) · LangGraph · MCP · Chroma · SQLite · Docker
 
 ## 한계와 다음 단계
 
